@@ -1,33 +1,25 @@
-from pydantic import BaseModel, Field
-from typing import Optional, Literal
+import json
+from Agente import extrair
+from roteamento import rotear
+from pathlib import Path
 
-class Paciente(BaseModel):
-    nome: Optional[str] = None
-    idade: Optional[int] = None
+texto = """HOSPITAL SANTA LUCIA - LAUDO DE EXAME RADIOLOGICO. Paciente: Carlos Eduardo Mendes, 52 anos.
+Solicitante: Dra. Renata Silveira CRM-SP 145892. Exame: Tomografia de Torax com contraste.
+Indicacao: Suspeita de embolia pulmonar aguda, dispneia subita. Achados: Falha de enchimento em
+arteria pulmonar principal direita compativel com TEP agudo. CONCLUSAO: Quadro compativel com
+Tromboembolismo Pulmonar Agudo. Sugere-se correlacao clinica urgente."""
 
-class Medico(BaseModel):
-    nome: Optional[str] = None
-    crm: Optional[str] = None  
+doc = extrair(texto)
+decisao = rotear(doc)
 
-class Medicamento(BaseModel):
-    nome: str
-    dosagem: Optional[str] = None
-    posologia: Optional[str] = None
+resultado = {
+    "dados_extraidos": doc.model_dump(),
+    "decisao_roteamento": decisao,
+}
+print(json.dumps(resultado, indent=2, ensure_ascii=False)) 
 
-class Classificacao(BaseModel):
-    tipo_documento: Literal[
-        "Receituario", "Laudo Laboratorial", "Laudo de Imagem",
-        "Guia de Procedimento", "Relatorio de Alta", "Atestado", "Desconhecido"
-    ]
-    nivel_prioridade: Literal["Rotina", "Urgente", "Indefinido"]
-    score_confianca: float = Field(ge=0, le=1)
-
-class DocumentoExtraido(BaseModel):
-    classificacao: Classificacao
-    paciente: Paciente
-    medico_solicitante: Medico
-    diagnostico_principal: Optional[str] = None
-    cid_sugerido: Optional[str] = None
-    medicamentos: list[Medicamento] = []
-    exames_solicitados: list[str] = []
-    campos_ilegiveis: list[str] = []  
+Path("saida").mkdir(exist_ok=True)
+Path("saida/resultado.json").write_text(
+    json.dumps(resultado, indent=2, ensure_ascii=False),
+    encoding="utf-8",
+)
